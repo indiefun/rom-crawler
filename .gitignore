@@ -1,0 +1,8 @@
+node_modules/
+
+nes/
+snes/
+n64/
+
+*-org.json
+*.bak
