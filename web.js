@@ -1,8 +1,9 @@
 const { mkdirSync, writeFileSync, existsSync, renameSync, rmSync } = require('fs')
-const { download } = require('./http')
+const { download, json } = require('./http')
 const { webpToJpeg } = require('./image')
 const { timeout, groupByLanguage, groupByTitle } = require('./utils')
 const { prompt } = require('./input')
+const { getCache, setCache } = require('./cache')
 const xml = require('./xml')
 
 async function _fetchGames(games, options = {}) {
@@ -39,6 +40,37 @@ async function fetchGames(games, options = {}) {
     }
 }
 
+async function fetchList(options) {
+    const types = {
+        nes: '红白机（FC / NES）', 
+        snes: '超级任天堂（SFC / SNES）', 
+        n64: '任天堂64（N64）', 
+        ps: 'PlayStation（PS）', 
+        ps2: 'PlayStation 2', 
+        gb: 'Game Boy（GB）', 
+        gbc: 'Game Boy Color（GBC）', 
+        gba: 'Game Boy Advance（GBA）', 
+        nds: '任天堂DS（NDS）', 
+        segaMD: 'Sega Mega Drive', 
+        segaSaturn: '世嘉土星（Sega Saturn）', 
+        ngpc: 'Neo Geo Pocket Color', 
+        ngp: 'Neo Geo Pocket', 
+        atari2600: 'Atari 2600', 
+        atari5200: 'Atari 5200', 
+        atari7800: 'Atari 7800', 
+        lynx: 'Atari Lynx', 
+        ws: 'Wanderswan', 
+        wsc: 'Wanderswan Color', 
+        vb: 'Virtual Boy', 
+        segaGG: 'Sega Game Gear', 
+        jaguar: 'Atari Jaguar', 
+        pce: 'TurboGrafx-16 | PC Engine'
+    }
+    console.log(`可下载的游戏类型：\n${Object.entries(types).map(([k, v]) => `	${k}: ${v}`).join('\n')}`)
+    options.type = options?.type ?? await prompt('请输入要下载的游戏类型: ')
+    return await json(`https://api.zaixianwan.app/v1/games?type=${options.type}`)
+}
+
 async function filterGames(infos, options) {
     const langs = groupByLanguage(infos)
     for (const lang of Object.keys(langs)) {
@@ -49,36 +81,28 @@ async function filterGames(infos, options) {
     console.log(Object.entries(langs).map(([l, a]) => `	${l}: ${a.length}`).join('\n'))
     if (!options.filter.lang) options.filter.lang = await prompt(`请输入要下载的语言, 例如 'zh', 留空则下载全部语言: `)
 
-    const games = []
-    const rests = []
-    for (const [lang, list] of Object.entries(langs)) {
-        if (options.filter.lang && options.filter.lang === lang) games.push(...list)
-        else rests.push(...list)
-    }
-
+    const cache = getCache()
+    const kicks = cache.kicks ?? []
+    const games = (options.filter.lang ? langs[options.filter.lang] : infos).filter(game => !kicks.includes(game.title))
     const names = groupByTitle(games)
 
     // choose when multiple
-    const array = []
+    const saves = []
     for (const [name, list] of Object.entries(names)) {
         let choice = 0
         if (list.length > 1) {
             console.error(`${name} 存在 ${list.length} 个信息: \n${list.map((game, i) => `${i + 1}. ${game.title}`).join('\n')}`)
             choice = (await prompt(`请输入要保留的序号, 留空则保留第一个: `, 1)) - 1
         }
-        array.push(list[choice])
+        saves.push(list[choice])
+        kicks.push(...(list.filter((_, i) => i !== choice).map(game => game.title)))
     }
 
-    // save choose
-    if ((array.length + rests.length) !== infos.length) {
-        const sure = await prompt(`是否将结果存入${options.type}.json文件? [y/n] `)
-        if (sure === 'y') {
-            renameSync(`./${options.type}.json`, `./${options.type}.json.bak`)
-            writeFileSync(`./${options.type}.json`, JSON.stringify([...array, ...rests]))
-        }
-    }
+    // save kicks in cache
+    cache.kicks = kicks
+    setCache(cache)
 
-    return array
+    return saves
 }
 
-module.exports = { fetchGames, filterGames }
+module.exports = { fetchList, fetchGames, filterGames }
