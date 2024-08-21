@@ -7,19 +7,19 @@ const { getCache, setCache } = require('./cache')
 const xml = require('./xml')
 
 async function _fetchGames(games, options = {}) {
-    const type = options?.type ?? 'nes'
+    const root = `./${options?.type ?? '.'}`
     const list = []
     for (const game of games) {
         console.log(`${game.name}:`)
-        const root = `./${type}/${game.lang}/${game.name}`
-        mkdirSync(root, { recursive: true })
-        await download(`https://binary.zaixianwan.app/${game.binary}`, `${root}/${game.title}.zip`)
+        const base = `${root}/${game.lang}/${game.name}`
+        mkdirSync(base, { recursive: true })
+        await download(`https://binary.zaixianwan.app/${game.binary}`, `${base}/${game.title}.zip`)
         const info = { path: `./${game.lang}/${game.name}/${game.title}.zip`, name: game.name, lang: game.lang }
         if (game.titleScreenImage) {
-            if (!existsSync(`${root}/${game.title}.jpg`)) {
-                await download(`https://images.zaixianwan.app/${game.titleScreenImage}`, `${root}/${game.title}.webp`)
-                await webpToJpeg(`${root}/${game.title}.webp`)
-                rmSync(`${root}/${game.title}.webp`)
+            if (!existsSync(`${base}/${game.title}.jpg`)) {
+                await download(`https://images.zaixianwan.app/${game.titleScreenImage}`, `${base}/${game.title}.webp`)
+                await webpToJpeg(`${base}/${game.title}.webp`)
+                rmSync(`${base}/${game.title}.webp`)
             }
             info.image = `./${game.lang}/${game.name}/${game.title}.jpg`
         }
@@ -27,7 +27,7 @@ async function _fetchGames(games, options = {}) {
     }
 
     const infos = xml.temp(list)
-    writeFileSync(`./${type}/gamelist.xml`, infos)
+    writeFileSync(`${root}/gamelist.xml`, infos)
 }
 
 async function fetchGames(games, options = {}) {
