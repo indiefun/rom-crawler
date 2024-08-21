@@ -66,7 +66,7 @@ async function fetchList(options) {
         jaguar: 'Atari Jaguar', 
         pce: 'TurboGrafx-16 | PC Engine'
     }
-    console.log(`可下载的游戏类型：\n${Object.entries(types).map(([k, v]) => `	${k}: ${v}`).join('\n')}`)
+    console.log(`可下载的游戏类型：\n${Object.entries(types).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`)
     options.type = options?.type ?? await prompt('请输入要下载的游戏类型: ')
     return await json(`https://api.zaixianwan.app/v1/games?type=${options.type}`)
 }
@@ -78,7 +78,7 @@ async function filterGames(infos, options) {
     }
 
     console.log(`一共存在 ${Object.keys(langs).length} 种语言, 数量如下:`)
-    console.log(Object.entries(langs).map(([l, a]) => `	${l}: ${a.length}`).join('\n'))
+    console.log(Object.entries(langs).map(([l, a]) => `  ${l}: ${a.length}`).join('\n'))
     if (!options.filter.lang) options.filter.lang = await prompt(`请输入要下载的语言, 例如 'zh', 留空则下载全部语言: `)
 
     const cache = getCache()
@@ -91,7 +91,7 @@ async function filterGames(infos, options) {
     for (const [name, list] of Object.entries(names)) {
         let choice = 0
         if (list.length > 1) {
-            console.error(`${name} 存在 ${list.length} 个信息: \n${list.map((game, i) => `${i + 1}. ${game.title}`).join('\n')}`)
+            console.log(`${name} 存在 ${list.length} 个信息: \n${list.map((game, i) => `${i + 1}. ${game.title}`).join('\n')}`)
             choice = (await prompt(`请输入要保留的序号, 留空则保留第一个: `, 1)) - 1
         }
         saves.push(list[choice])
