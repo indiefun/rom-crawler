@@ -4,6 +4,7 @@ const { webpToJpeg } = require('./image')
 const { timeout, groupByLanguage, groupByTitle } = require('./utils')
 const { prompt } = require('./input')
 const { getCache, setCache } = require('./cache')
+const { types, pres, posts } = require('./config')
 const xml = require('./xml')
 
 async function _fetchGames(games, options = {}) {
@@ -11,9 +12,15 @@ async function _fetchGames(games, options = {}) {
     const list = []
     for (const game of games) {
         console.log(`${game.name}:`)
+        
         const base = `${root}/${game.lang}/${game.name}`
         mkdirSync(base, { recursive: true })
+
+        const pre = pres[options.type]
+        if (pre) await pre(game, base)
+        
         await download(`https://binary.zaixianwan.app/${game.binary}`, `${base}/${game.title}.zip`)
+        
         const info = { path: `./${game.lang}/${game.name}/${game.title}.zip`, name: game.name, lang: game.lang }
         if (game.titleScreenImage) {
             if (!existsSync(`${base}/${game.title}.jpg`)) {
@@ -23,6 +30,10 @@ async function _fetchGames(games, options = {}) {
             }
             info.image = `./${game.lang}/${game.name}/${game.title}.jpg`
         }
+        
+        const post = posts[options.type]
+        if (post) Object.assign(info, await post(game, base))
+
         list.push(xml.game(info))
     }
 
@@ -41,31 +52,6 @@ async function fetchGames(games, options = {}) {
 }
 
 async function fetchList(options) {
-    const types = {
-        nes: '红白机（FC / NES）', 
-        snes: '超级任天堂（SFC / SNES）', 
-        n64: '任天堂64（N64）', 
-        ps: 'PlayStation（PS）', 
-        ps2: 'PlayStation 2', 
-        gb: 'Game Boy（GB）', 
-        gbc: 'Game Boy Color（GBC）', 
-        gba: 'Game Boy Advance（GBA）', 
-        nds: '任天堂DS（NDS）', 
-        segaMD: 'Sega Mega Drive', 
-        segaSaturn: '世嘉土星（Sega Saturn）', 
-        ngpc: 'Neo Geo Pocket Color', 
-        ngp: 'Neo Geo Pocket', 
-        atari2600: 'Atari 2600', 
-        atari5200: 'Atari 5200', 
-        atari7800: 'Atari 7800', 
-        lynx: 'Atari Lynx', 
-        ws: 'Wanderswan', 
-        wsc: 'Wanderswan Color', 
-        vb: 'Virtual Boy', 
-        segaGG: 'Sega Game Gear', 
-        jaguar: 'Atari Jaguar', 
-        pce: 'TurboGrafx-16 | PC Engine'
-    }
     console.log(`可下载的游戏类型：\n${Object.entries(types).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`)
     options.type = options?.type ?? await prompt('请输入要下载的游戏类型: ')
     return await json(`https://api.zaixianwan.app/v1/games?type=${options.type}`)
